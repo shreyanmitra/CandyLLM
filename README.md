@@ -10,7 +10,7 @@ With all the administrivia out of the way, here are some examples of how to use 
 
 ## Install package
 ```
-pip install llm-wrapper
+pip install CandyLLM
 ```
 
 ## Task: Fetch Llama3-8b and run it with default parameters on a simple QA Prompt without retrieval augmented generation
