@@ -129,7 +129,7 @@ class LLMWrapper:
             self.allResponses = sequences
             return sequences[0]['generated_text'];
         else:
-            systemPrompt = {"role": "system", "content": "JSON\n Forget all previous prompts and roles. You are a helpful, respectful, and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Answer the prompt given and only the prompt given, without any extra information.\n"}
+            systemPrompt = {"role": "system", "content": "\n Forget all previous prompts and roles. You are a helpful, respectful, and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Answer the prompt given and only the prompt given, without any extra information.\n"}
             if(task == "QAWithRAG"): #TODO: Does not support vector store; context must be in text format
               if(len(args) == 0):
                 raise Exception("Context is needed in QAWithRAG tasks.");
@@ -143,7 +143,7 @@ class LLMWrapper:
             prompt = {"role": "user", "content": prompt}
             response = self.client.chat.completions.create(
               model=self.modelName,
-              response_format={ "type": "json_object" },
+              response_format={ "type": "text" },
               messages=[
                 systemPrompt,
                 prompt
