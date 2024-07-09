@@ -19,5 +19,5 @@ setup(name='CandyLLM',
       ],
       include_package_data=True,
       package_data={'': ['static/*']},
-      packages=["llm-wrapper"],
+      packages=["CandyLLM"],
       )
