@@ -1,6 +1,6 @@
 # llm-wrapper 🍬
 
-A simple, easy-to-use framework for HuggingFace and OpenAI text-generation models.
+A simple, easy-to-use framework for HuggingFace and OpenAI text-generation models. The goal is to eventually integrate other sources as well and create a coherent UI.
 
 This is a work-in-progress, so pull-requests and issues are welcome! We try to keep it as stable as possible though, so people installing this library do not have any problems. 
 
@@ -48,3 +48,12 @@ myLLM = LLMWrapper(...) #Create some LLM wrapper
 myLLM.promptSafetyCheck("Is 1010 John Doe's social security number?") #Returns false to indicate unsafe prompt
 ```
 
+## Change Config
+Want to use a different model. No need to create another wrapper.
+```python
+myLLM = LLMWrapper(...) #Create some LLM wrapper
+myLLM.setConfig("MY_TOKEN", testing = False, source="HuggingFace", modelName = "Mistral", modelNameType = "alias") #Tada: a changed LLM wrapper
+```
+
+## Dummy LLM
+Sometimes, you don't want to spend the time and money to make api calls to an actual LLM, especially if you are testing an UI or an integration of a chat service. Dummy LLMs to the rescue! Our dummy LLM is called "Useless" and it will return answers immediately with very little computation spent (granted, the results it gives are useless - but, hey, what did you expect? 😃)
