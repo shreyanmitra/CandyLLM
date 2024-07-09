@@ -32,7 +32,7 @@ myLLM.answer("What is the capital of Funlandia?", task="QAWithRAG", "The capital
 ## Task: Fetch GPT-4 and run it with presence_penalty = 0.5 on an Open-Ended Prompt
 ```python
 import llm-wrapper
-myLLM = LLMWrapper("MY_OPENAI_TOKEN", testing=False, source="OpenAI", modelName = "gpt-4-turbo")
+myLLM = LLMWrapper("MY_OPENAI_TOKEN", testing=False, source="OpenAI", modelName = "gpt-4-turbo", modelNameType="path")
 myLLM.answer("Write a creative essay about sustainability", task="Open-Ended", presence_penalty=0.5)
 ```
 ## Log out of HuggingFace and OpenAI and remove my API keys from the environment
