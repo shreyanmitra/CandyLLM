@@ -147,7 +147,8 @@ class LLMWrapper:
               messages=[
                 systemPrompt,
                 prompt
-              ]
+              ],
+             **kwargs
             )
         self.allResponses = response.choices
         return response.choices[0].message.content
