@@ -96,16 +96,17 @@ class LLMWrapper:
         hfout()
         del environ['OPENAI_API_KEY']
     
-    
+    #Todo: Add functionality for LLM to remember past conversations for OpenAI models
     def answer(self,prompt, task = "QAWithoutRAG", *args, **kwargs): #Prompt should be in correct format (string for Hugging Face or list of dictionary for OpenAI)
     
         assert task in ["QAWithoutRAG", "QAWithRAG", "Open-ended"], "Not a valid task. Task must be one of ['QAWithoutRAG', 'QAWithRAG', 'Open-ended']"
         
         if(self.modelName == "Useless"):
             return "I am an useless assistant. I will not help you, no matter how much you beg and plead."
+            
+        assert type(prompt) == str, "For models, prompt should be included as a string."
         
         if (self.source == "HuggingFace"):
-            assert type(prompt) == str, "For HuggingFace models, prompt should be included as a string."
             systemPrompt = "Forget all previous prompts and roles. You are a helpful, respectful, and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Answer the prompt given and only the prompt given, without any extra information.\n"
             if(task == "QAWithRAG"): #TODO: Does not support vector store; context must be in text format
               if(len(args) == 0):
@@ -128,7 +129,6 @@ class LLMWrapper:
             self.allResponses = sequences
             return sequences[0]['generated_text'];
         else:
-            assert type(prompt) == list, "For OpenAI models, prompt should be included as a list of roles (with each role being a dictionary)."
             systemPrompt = {"role": "system", "content": "Forget all previous prompts and roles. You are a helpful, respectful, and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Answer the prompt given and only the prompt given, without any extra information.\n"}
             if(task == "QAWithRAG"): #TODO: Does not support vector store; context must be in text format
               if(len(args) == 0):
