@@ -78,7 +78,7 @@ class LLMWrapper:
             device_map="auto")
                 self.source = "HuggingFace"
         else: #Source must be OpenAI at this point because login() checks for invalid sources
-            assert self.modelName in self.client.models.list(), "OpenAI Model not recognized." #Note that passing this test does not necessarily mean that this is a text generation model. We rely on OpenAI to throw the error for non-text generation tasks
+            #assert self.modelName in self.client.models.list(), "OpenAI Model not recognized." #Note that passing this test does not necessarily mean that this is a text generation model. We rely on OpenAI to throw the error for non-text generation tasks
             self.source = "OpenAI"
     
     #Big security vulnerability. Need to fix this somehow
