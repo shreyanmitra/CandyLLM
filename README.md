@@ -1,4 +1,4 @@
-# llm-wrapper 🍬
+# CandyLLM 🍬
 
 A simple, easy-to-use framework for HuggingFace and OpenAI text-generation models. The goal is to eventually integrate other sources such as custom large language models (LLMs) as well to create a coherent UI.
 
