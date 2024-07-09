@@ -1,7 +1,7 @@
 from setuptools import setup, find_namespace_packages
 
 setup(name='llm-wrapper',
-      version='2.9.2', 
+      version='0.0.1', 
       description='llm-wrapper: Unified framework for HuggingFace and OpenAI Text-generation Models',
       long_description=open("README.md", "r", encoding="utf-8").read(),
       long_description_content_type="text/markdown",
