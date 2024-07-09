@@ -59,14 +59,14 @@ class LLMWrapper:
             self.source = None
             return
     
-        if(modelNameType == "alias"):
+        if(modelNameType == "alias" and source=="HuggingFace"):
             try:
                 self.modelName = LLMWrapper.aliases[modelName]
             except Exception as e:
                 raise Exception(modelName + " not a recognized alias. Try setting modelNameType = 'path'.")
         elif(modelNameType == "path"):
             self.modelName = modelName
-        else:
+        elif(source != "OpenAI"):
             raise Exception("modelNameType should be 'alias' or 'path'")
     
         self.login(accessKey, source)
@@ -78,7 +78,6 @@ class LLMWrapper:
             device_map="auto")
                 self.source = "HuggingFace"
         else: #Source must be OpenAI at this point because login() checks for invalid sources
-            openai.api_key = environ['OPENAI_API_KEY']
             assert self.modelName in self.client.models.list(), "OpenAI Model not recognized." #Note that passing this test does not necessarily mean that this is a text generation model. We rely on OpenAI to throw the error for non-text generation tasks
             self.source = "OpenAI"
     
@@ -88,7 +87,8 @@ class LLMWrapper:
       if (source == "HuggingFace"):
           lg(accessKey)
       elif (source=="OpenAI"):
-          self.client = OpenAI(accessKey)
+          self.client = OpenAI(api_key=accessKey)
+          #openai.api_key = accessKey
       else:
           raise Exception("Source " + source + " not recognized.")
     
