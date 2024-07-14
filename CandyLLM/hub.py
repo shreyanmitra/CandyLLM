@@ -17,6 +17,7 @@ from transformers import pipeline #To access models on HuggingFace easily and sy
 from transformers import AutoTokenizer #Convert data into information readable by the model
 import transformers #The repository of HuggingFace models
 import torch #Needed to contruct the LLMs
+import gradio as gr #For UI
 #Following three are for prompt safety analysis
 from llm_guard import scan_prompt
 from llm_guard.input_scanners import Anonymize, PromptInjection, TokenLimit, Toxicity, Secrets, Code, Gibberish, InvisibleText
