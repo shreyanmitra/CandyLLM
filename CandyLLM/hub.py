@@ -51,10 +51,10 @@ class LLMWrapper:
         "Bloom": "bigscience/bloom",
     }
 
-    def __init__(self, accessKey, testing = True, source="HuggingFace", modelName = "Llama8b", modelNameType = "alias"):
+    def __init__(self, accessKey=None, testing = True, source="HuggingFace", modelName = "Llama8b", modelNameType = "alias"):
         self.setConfig(accessKey, testing, source, modelName, modelNameType)
     
-    def setConfig(self, accessKey, testing, source, modelName, modelNameType):
+    def setConfig(self, accessKey=None, testing, source, modelName, modelNameType):
         if(testing):
             self.modelName = "Useless"
             self.source = None
