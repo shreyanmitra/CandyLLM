@@ -44,8 +44,7 @@ myLLM.logout()
 
 ## Check for malicious input prompts
 ```python
-myLLM = LLMWrapper(...) #Create some LLM wrapper
-myLLM.promptSafetyCheck("Is 1010 John Doe's social security number?") #Returns false to indicate unsafe prompt
+LLMWrapper.promptSafetyCheck("Is 1010 John Doe's social security number?") #Returns false to indicate unsafe prompt
 ```
 
 ## Change Config
