@@ -1,7 +1,7 @@
 from setuptools import setup, find_namespace_packages
 
 setup(name='CandyLLM',
-      version='0.0.5', 
+      version='0.0.6', 
       description='CandyLLM: Unified framework for HuggingFace and OpenAI Text-generation Models',
       long_description=open("README.md", "r", encoding="utf-8").read(),
       long_description_content_type="text/markdown",
