@@ -199,3 +199,128 @@ class LLMWrapper:
     
     def __str__(self):
       return self.modelName
+
+    @classmethod
+    def getUI(cls, preprocessor_fn = None, postprocessor_fn = None, selfOutput = False, launch = True):
+    
+        #Create plots for graphics
+        fig, ax = plt.subplots()
+        
+        #Use light mode always
+        js_func = """
+        function refresh() {
+            const url = new URL(window.location);
+        
+            if (url.searchParams.get('__theme') !== 'light') {
+                url.searchParams.set('__theme', 'light');
+                window.location.href = url.href;
+            }
+        }
+        """
+        
+        #Parameter Config
+        NAME = "Llama2-7b"
+        MODELARGS = {}
+        ACCESS = None
+        output = None
+    
+        #Paramater Change Events
+        def updateTemperature(newTemperature):
+          MODELARGS["temperature"] = newTemperature;
+         
+        def updateMaxTokens(newMaxTokens):
+          MODELARGS["max_new_tokens"] = newMaxTokens;
+        
+        def updateTopP(newTopP):
+          MODELARGS["top_p"] = newTopP;
+        
+        def updateRepetitionPenalty(newRepetitionPenalty):
+          MODELARGS["repetition_penalty"] = newRepetitionPenalty;
+        
+        def updateName(newName):
+          NAME = newName;
+          print("Changed model to " + NAME)
+
+        def updateOutput(chatbot):
+            try:
+                return gr.Textbox(value=postprocessor_fn(chatbot[-1][0], chatbot[-1][1]), label="Output", interactive = False, visible = selfOutput)
+            except:
+                return Output
+            
+
+
+        #User prompt submitted event
+        def getModelResponse(message, history, llmchoice, key, systemPrompt, temperature, max_tokens, topp, reppen):
+            
+            NAME = llmchoice;
+            MODELARGS["temperature"] = temperature;
+            MODELARGS["max_new_tokens"] = max_tokens;
+            MODELARGS["top_p"] = topp;
+            MODELARGS["repetition_penalty"] = reppen;
+            args = [systemPrompt] if len(systemPrompt) == 0 else [];
+            
+            llm = None
+            if(NAME == "Useless"):
+                llm = LLMWrapper()   
+            elif(NAME in LLMWrapper.aliases.keys()):
+                llm = LLMWrapper(accessKey = key, testing = False, modelName = NAME)
+            else:
+                source = NAME[:NAME.index(":")]
+                if(source == "OpenAI"):
+                    MODELARGS["max_tokens"] = MODELARGS["max_new_tokens"]
+                    MODELARGS["frequency_penalty"] = MODELARGS["repetition_penalty"]
+                    del MODELARGS["max_new_tokens"]
+                    del MODELARGS["repetition_penalty"]
+                else:
+                    del MODELARGS["max_tokens"]
+                    del MODELARGS["frequency_penalty"]
+                llm = LLMWrapper(accessKey = key, testing = False, source = source, modelName = NAME[NAME.index(":") + 1:], modelNameType = "path")
+                
+            if (preprocessor_fn is not None):
+                message = preprocessor_fn(message)
+            result =  llm.answer(message, **MODELARGS)
+    
+            if(postprocessor_fn is not None):
+                output = postprocessor_fn(message, result)
+                print("Output: " + str(output))
+                
+        
+            return result;
+    
+        
+        LLMChoice = gr.Dropdown(choices = list(LLMWrapper.aliases.keys()), label = "Chatbot name", value = "Llama2-7b", interactive = True, allow_custom_value = True, info="If you don't see your LLM in this list, simply type [Source]:[Path to Model]. For example, 'OpenAI:gpt-4-turbo' or 'HuggingFace:AI-MO/NuminaMath-7B-TIR'. For testing, simply type 'Useless'")
+        AccessToken = gr.Textbox(label = "API Key (Not shared)", type="password", info="Enter the API key here for your source. For non-gated or local repos, you can keep this field blank")
+        systemPrompt = gr.Textbox(label="System Prompt", lines=1)
+        Temperature = gr.Slider(0, 1, value=0.9, label="Temperature", info="1 is most diverse output", interactive = True)
+        maxTokens = gr.Slider(200, 1000, value=256, label="Manimum Number of Tokens", info="Length of output", interactive = True)
+        topP = gr.Slider(0, 1, value=0.6, label="Top-p", info="1 is most imaginative output, 0 is most normal", interactive = True)
+        repPen = gr.Slider(0, 2, value=1.2, label="Repetition Penalty", info="2 is maximum penalization", interactive = True)
+        Chatbot = gr.ChatInterface(getModelResponse, chatbot = gr.Chatbot(likeable=True, show_share_button=True, show_copy_button=True, bubble_full_width = False), additional_inputs=[LLMChoice, AccessToken, systemPrompt, Temperature, maxTokens, topP, repPen], additional_inputs_accordion = gr.Accordion(label="Chatbot Configuration", open=True), examples = [["What is the capital of France?"], ["What was John Lennon's first album?"], ["Write a rhetorical analysis of Hamlet."]])
+        with gr.Blocks(theme=gr.themes.Soft(), js=js_func) as interface:
+          Output = gr.Textbox(value=output, label="Output", interactive = False, visible = selfOutput)
+          #Additional Block Options here
+        
+          with gr.Row():
+              pass
+              #Additional Blocks here
+        
+          with gr.Row():
+              with gr.Column():
+                  Chatbot.render();
+                  Chatbot.chatbot.change(updateOutput, inputs = [Chatbot.chatbot], outputs = [Output])
+                  LLMChoice.change(updateName, inputs = [LLMChoice], outputs = [])
+                  Temperature.change(updateTemperature, inputs = [Temperature], outputs = [])
+                  maxTokens.change(updateMaxTokens, inputs = [maxTokens], outputs = [])
+                  topP.change(updateTopP, inputs = [topP], outputs = [])
+                  repPen.change(updateRepetitionPenalty, inputs = [repPen], outputs = [])
+                  
+          Title = gr.Markdown(
+            """
+            \nCandy, (C) Shreyan Mitra
+            \nYou can add your own hallucination and explainability metrics to this UI using gr.Blocks() and the output of the postprocess_fn you pass into the getUI function
+            \nYou can even use gr.Checkbox() to finegrain the functionality of preprocess_fn
+            """)
+        
+          if(launch):
+              interface.launch(share=True, debug = True);
+          return interface
