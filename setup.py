@@ -15,8 +15,7 @@ setup(name='CandyLLM',
         "transformers",
         "torch",
         "llm_guard", 
-        "gradio", 
-        "matplotlib"
+        "gradio"
       ],
       include_package_data=True,
       package_data={'': ['static/*']},
