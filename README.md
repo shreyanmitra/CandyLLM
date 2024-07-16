@@ -49,7 +49,7 @@ myLLM.promptSafetyCheck("Is 1010 John Doe's social security number?") #Returns f
 ```
 
 ## Change Config
-Want to use a different model. No need to create another wrapper.
+Want to use a different model? No need to create another wrapper.
 ```python
 myLLM = LLMWrapper(...) #Create some LLM wrapper
 myLLM.setConfig("MY_TOKEN", testing = False, source="HuggingFace", modelName = "Mistral", modelNameType = "alias") #Tada: a changed LLM wrapper
@@ -57,3 +57,19 @@ myLLM.setConfig("MY_TOKEN", testing = False, source="HuggingFace", modelName = "
 
 ## Dummy LLM
 Sometimes, you don't want to spend the time and money to make api calls to an actual LLM, especially if you are testing an UI or an integration of a chat service. Dummy LLMs to the rescue! Our dummy LLM is called "Useless" and it will return answers immediately with very little computation spent (granted, the results it gives are useless - but, hey, what did you expect? 😃)
+
+## CandyUI
+CandyUI is the user interface of CandyLLM. It provides a chatbot, a dropdown for choosing the LLM to use, parameter configs for the LLM, and the option to apply post-hoc and pre-hoc methods to the user prompt and LLM output. CandyUI can be integrated into and communicate with a larger UI with custom functions, or you can use the ``selfOutput`` option for the custom post-hoc metrics to be displayed within CandyUI itself.
+
+For example, running
+```python
+def postprocess(message, response):
+    #Sample postprocessor_fn which just returns the difference in length between LLM response and user prompt
+    return len(response) - len(message)
+x = LLMWrapper.getUI(postprocessor_fn = postprocess, selfOutput = True)
+```
+deploys the following webpage:
+
+
+![CandyUI](https://github.com/user-attachments/assets/da73f019-eda7-4c9e-a13a-2eb6b05bc5a9)
+
