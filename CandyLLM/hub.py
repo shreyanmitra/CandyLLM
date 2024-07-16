@@ -158,7 +158,8 @@ class LLMWrapper:
     def getAllReponses(self):
       return self.allReponses;
 
-    def promptSafetyCheck(self, prompt):#Prompt should be a string here
+    @classmethod
+    def promptSafetyCheck(cls, prompt):#Prompt should be a string here
       vault = Vault()
       input_scanners = [Anonymize(vault), Toxicity(), TokenLimit(), PromptInjection(), TokenLimit(), Secrets(), Gibberish(), InvisibleText()]
     
