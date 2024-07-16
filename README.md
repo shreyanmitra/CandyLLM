@@ -69,7 +69,6 @@ def postprocess(message, response):
 x = LLMWrapper.getUI(postprocessor_fn = postprocess, selfOutput = True)
 ```
 deploys the following webpage:
+![CandyUI](https://github.com/user-attachments/assets/db78b5e8-722b-4bbe-9581-e2f82000920c)
 
-
-![CandyUI](https://github.com/user-attachments/assets/da73f019-eda7-4c9e-a13a-2eb6b05bc5a9)
 
