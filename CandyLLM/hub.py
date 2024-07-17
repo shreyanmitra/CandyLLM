@@ -201,7 +201,7 @@ class LLMWrapper:
       return self.modelName
 
     @classmethod
-    def getUI(cls, preprocessor_fn = None, postprocessor_fn = None, selfOutput = False, launch = True):
+    def getUI(cls, preprocessor_fn = None, postprocessor_fn = None, selfOutput = False, selfOutputLabel = "Output", selfOutputType = "Text", launch = True):
         
         #Use light mode always
         js_func = """
@@ -240,7 +240,10 @@ class LLMWrapper:
 
         def updateOutput(chatbot):
             try:
-                return gr.Textbox(value=postprocessor_fn(chatbot[-1][0], chatbot[-1][1]), label="Output", interactive = False, visible = selfOutput)
+                if(selfOutputType == "HighlightedText"):
+                  return gr.HighlightedText(value=postprocessor_fn(chatbot[-1][0], chatbot[-1][1]), label=selfOutputLabel, interactive = False, visible = selfOutput)
+                else:
+                  return gr.Textbox(value=postprocessor_fn(chatbot[-1][0], chatbot[-1][1]), label=selfOutputLabel, interactive = False, visible = selfOutput, info="Value returned by postprocessor_fn")
             except:
                 return Output
             
@@ -294,7 +297,11 @@ class LLMWrapper:
         repPen = gr.Slider(0, 2, value=1.2, label="Repetition Penalty", info="2 is maximum penalization", interactive = True)
         Chatbot = gr.ChatInterface(getModelResponse, chatbot = gr.Chatbot(likeable=True, show_share_button=True, show_copy_button=True, bubble_full_width = False), additional_inputs=[LLMChoice, AccessToken, systemPrompt, Temperature, maxTokens, topP, repPen], additional_inputs_accordion = gr.Accordion(label="Chatbot Configuration", open=True), examples = [["What is the capital of France?"], ["What was John Lennon's first album?"], ["Write a rhetorical analysis of Hamlet."]])
         with gr.Blocks(theme=gr.themes.Soft(), js=js_func) as interface:
-          Output = gr.Textbox(value=output, label="Output", interactive = False, visible = selfOutput)
+          with gr.Column():
+                if(selfOutputType == "HighlightedText"):
+                  Output = gr.HighlightedText(value=output, label=selfOutputLabel, interactive = False, visible = selfOutput)
+                else: #Defaults to Text
+                  Output = gr.Textbox(value=output, label=selfOutputLabel, interactive = False, visible = selfOutput, info = "Value returned by postprocessor_fn")
           #Additional Block Options here
         
           with gr.Row():
