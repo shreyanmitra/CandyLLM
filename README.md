@@ -65,9 +65,27 @@ For example, running
 def postprocess(message, response):
     #Sample postprocessor_fn which just returns the difference in length between LLM response and user prompt
     return len(response) - len(message)
-x = LLMWrapper.getUI(postprocessor_fn = postprocess, selfOutput = True)
+x = LLMWrapper.getUI(postprocessor_fn = postprocess, selfOutput = True, selfOutputLabel = "Length Difference")
 ```
 deploys the following webpage:
-![CandyUI](https://github.com/user-attachments/assets/db78b5e8-722b-4bbe-9581-e2f82000920c)
+
+![Screen Shot 2024-07-17 at 11 53 53 AM](https://github.com/user-attachments/assets/3e0bee23-4cad-427d-8c74-68057c033844)
+
+
+
+You can also change how the output is shown. For example, for explainability purposes, you might want to set ```selfOutputType = "HighlightedText"```:
+
+```python
+def postprocess(message, response):
+    #Randomly assigns importance scores to words in the user prompt
+    importantWords = []
+    for word in message.split():
+        importantWords.append((word, "important")) if len(word) > 3 else importantWords.append((word, "unimportant"))
+    return importantWords
+x = LLMWrapper.getUI(postprocessor_fn = postprocess, selfOutput = True, selfOutputLabel = "Important Words", selfOutputType = "HighlightedText")
+
+```
+The UI now looks like this:
+![Screen Shot 2024-07-17 at 11 50 43 AM](https://github.com/user-attachments/assets/83a3f3ae-a566-4fa1-aa9e-a9b3f8751e80)
 
 
