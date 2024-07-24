@@ -4,7 +4,7 @@ A simple, easy-to-use framework for HuggingFace and OpenAI text-generation model
 
 This is a work-in-progress, so pull-requests and issues are welcome! We try to keep it as stable as possible though, so people installing this library do not have any problems. 
 
-If you use this library, please cite Shreyan Mitra.
+If you use this library, please cite Shreyan Mitra. The library is also contributed to by members of AIEA Lab at the University of California, Santa Cruz.
 
 With all the administrivia out of the way, here are some examples of how to use the library. We are still setting up the official documentation. The following examples show some use cases, or tasks, and how an user of llm-wrapper would invoke the model of their choice.
 
