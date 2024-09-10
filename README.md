@@ -6,7 +6,8 @@ Unlike other libraries like Langchain, the implementation of the wrapper is *all
 
 This is a work-in-progress, so pull-requests and issues are welcome! We try to keep it as stable as possible though, so people installing this library do not have any problems. 
 
-NOTE: Claude and Gemini are not supported yet.
+<blockquote>NOTE: Claude and Gemini are not supported yet.</blockquote>
+
 
 If you use this library, please cite Shreyan Mitra. The library is also forked and contributed to by members of AIEA Lab at the University of California, Santa Cruz.
 
