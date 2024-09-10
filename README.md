@@ -1,8 +1,12 @@
 # CandyLLM 🍬
 
-A simple, easy-to-use framework for HuggingFace and OpenAI text-generation models. The goal is to eventually integrate other sources such as custom large language models (LLMs) as well to create a coherent UI.
+A simple, easy-to-use framework for HuggingFace and OpenAI text-generation models. The goal is to eventually integrate other sources such as custom large language models (LLMs) as well to create a coherent UI. 
+
+Unlike other libraries like Langchain, the implementation of the wrapper is *all in one page*, making it easy to read and modify!
 
 This is a work-in-progress, so pull-requests and issues are welcome! We try to keep it as stable as possible though, so people installing this library do not have any problems. 
+
+NOTE: Claude and Gemini are not supported yet.
 
 If you use this library, please cite Shreyan Mitra. The library is also forked and contributed to by members of AIEA Lab at the University of California, Santa Cruz.
 
