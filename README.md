@@ -2,7 +2,7 @@
 
 A simple, easy-to-use framework for HuggingFace and OpenAI text-generation models. The goal is to eventually integrate other sources such as custom large language models (LLMs) as well to create a coherent UI. 
 
-Unlike other libraries like Langchain, the implementation of the wrapper is *all in one page*, making it easy to read and modify!
+Unlike other libraries like Langchain, the implementation of the wrapper is *all in one page*, making it easy to read and modify! There is also a focus towards explainability inherently built-in to the UI and the code.
 
 This is a work-in-progress, so pull-requests and issues are welcome! We try to keep it as stable as possible though, so people installing this library do not have any problems. 
 
