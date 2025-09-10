@@ -1,0 +1,46 @@
+"""
+(C) Shreyan Mitra. Created for the AIEA Lab at UC Santa Cruz.
+
+Configuration file for pytest testing framework.
+
+This file configures pytest behavior, test discovery, markers,
+and other testing settings for the CandyLLM test suite.
+"""
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=CandyLLM",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+    "--cov-fail-under=70",
+]
+testpaths = [
+    "tests",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]
+python_classes = [
+    "Test*",
+]
+python_functions = [
+    "test_*",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests", 
+    "setup_wizard: marks tests related to setup wizard",
+    "security: marks tests related to security features",
+    "enterprise: marks tests for enterprise features",
+]
+filterwarnings = [
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]

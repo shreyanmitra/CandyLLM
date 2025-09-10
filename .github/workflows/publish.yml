@@ -1,27 +1,151 @@
-name: Publish to pip
+name: Build, Test & Publish CandyLLM
 
 on:
   release:
     types: [published, edited]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build
+          pip install build pytest pytest-asyncio pytest-cov
+          # Install optional dependencies for testing
+          pip install rich pyyaml
+      
+      - name: Install CandyLLM
+        run: |
+          pip install -e .
+      
+      - name: Test setup wizard functionality
+        run: |
+          # Test that setup wizard can be imported and basic functions work
+          python -c "from CandyLLM.setup import CandyLLMEnterpriseSetupWizard; print('✅ Setup wizard import successful')"
+          python -c "from CandyLLM.setup import ConfigManager; cm = ConfigManager(); print('✅ Config manager working')"
+      
+      - name: Test CLI entry points
+        run: |
+          # Test that CLI entry points are properly configured
+          python -c "import pkg_resources; eps = [ep for ep in pkg_resources.iter_entry_points('console_scripts') if 'candyllm' in ep.name]; print(f'✅ Found CLI entry points: {[ep.name for ep in eps]}')"
+      
+      - name: Test package structure
+        run: |
+          # Verify package can be imported
+          python -c "import CandyLLM; print(f'✅ CandyLLM imported successfully')"
+          python -c "from CandyLLM import hub; print('✅ CandyLLM hub module working')"
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety bandit
+          pip install -e .
+      
+      - name: Run safety check
+        run: |
+          safety check --json --output safety-report.json || echo "Safety check completed"
+      
+      - name: Run bandit security scan
+        run: |
+          bandit -r CandyLLM/ -f json -o bandit-report.json || echo "Bandit scan completed"
+      
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-scan-results
+          path: |
+            safety-report.json
+            bandit-report.json
+        if: always()
+
+  build:
+    needs: [test, security-scan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+      
       - name: Build package
         run: |
           python -m build
+      
+      - name: Check package integrity
+        run: |
+          twine check dist/*
+      
+      - name: Test package installation
+        run: |
+          # Test installation from built package
+          pip install dist/*.whl
+          python -c "import CandyLLM; print(f'✅ Package installation test passed')"
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    environment: release
+    permissions:
+      id-token: write  # For trusted publishing
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist
+          path: dist/
+      
       - name: Publish distribution 📦 to PyPI
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}

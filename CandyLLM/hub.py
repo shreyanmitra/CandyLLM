@@ -1,330 +1,498 @@
-#Code for wrapping LLMs
-#(C) Shreyan Mitra, 2024
-#Created for the AIEA Lab, UC Santa Cruz
-#Open for use by all
+"""
+CandyLLM Hub - Main Interface for Advanced AI Capabilities
 
-#Imports
+This module provides the main interface for CandyLLM's advanced AI features including:
+- Intelligent model routing and selection
+- Neurosymbolic reasoning engine
+- Mathematical computation and symbolic reasoning
+- Knowledge graph operations
+- Multi-modal AI capabilities
 
-from huggingface_hub import HfApi
-import accelerate #For faster and more efficient performance
-from os import environ #To handle environment variables
-from huggingface_hub import login as lg #For logging into hugging face
-from huggingface_hub import logout as hfout #For logging out of hugging face
-import openai
-from openai import OpenAI #For logging into OpenAI
-from huggingface_hub import repo_exists #Check is a hugging face repo exists
-from transformers import pipeline #To access models on HuggingFace easily and systematically
-from transformers import AutoTokenizer #Convert data into information readable by the model
-import transformers #The repository of HuggingFace models
-import torch #Needed to contruct the LLMs
-import gradio as gr #For UI
-#Following three are for prompt safety analysis
-from llm_guard import scan_prompt
-from llm_guard.input_scanners import Anonymize, PromptInjection, TokenLimit, Toxicity, Secrets, Code, Gibberish, InvisibleText
-from llm_guard.vault import Vault
+Author: CandyLLM Team
+License: MIT
+"""
 
-#Main class
-class LLMWrapper:
-    """Class that wraps text generation models and provides an unified platform
-     to set parameters, feed in prompts, and get results. Currently supports Hugging Face and OpenAI as sources
+import asyncio
+import logging
+from typing import Dict, Any, List, Optional, Union
+from datetime import datetime
+import json
 
-     Users can also access the LLM "Useless" to quickly get responses and test their application.
+from .core.router import IntelligentRouter
+from .core.neurosymbolic import create_neurosymbolic_engine, NeuroSymbolicEngine
+from .providers.base import BaseProvider
 
-     This class needs proper Sphinx documentation. Check the Issues tab on the Github Repo.
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class CandyLLM:
     """
-
-    aliases = {
-        "Llama2-7b": "meta-llama/Llama-2-7b-chat-hf",
-        "Llama2-13b": "meta-llama/Llama-2-13b-chat-hf",
-        "Llama2-70b": "meta-llama/Llama-2-70b-chat-hf",
-        "Llama8b": "meta-llama/Meta-Llama-3-8B-Instruct",
-        "Llama70b": "meta-llama/Meta-Llama-3-70B-Instruct",
-        "Zephyr7B": "HuggingFaceH4/zephyr-7b-beta",
-        "Vicuna": "lmsys/vicuna-13b-v1.5",
-        "GPTNeo": "EleutherAI/gpt-neo-2.7B",
-        "GPTJ": "EleutherAI/gpt-j-6B",
-        "MPT7b": "mosaicml/mpt-7b-instruct",
-        "Alpaca": "chavinlo/gpt4-x-alpaca",
-        "Mistral": "mistralai/Mistral-7B-Instruct-v0.2",
-        "Falcon": "tiiuae/falcon-180B",
-        "Cerebras-GPT": "cerebras/Cerebras-GPT-13B",
-        "Bloom": "bigscience/bloom",
-    }
-
-    def __init__(self, accessKey=None, testing = True, source="HuggingFace", modelName = "Llama8b", modelNameType = "alias"):
-        self.setConfig(accessKey, testing, source, modelName, modelNameType)
+    Main CandyLLM interface providing access to all advanced AI capabilities.
     
-    def setConfig(self, accessKey, testing, source, modelName, modelNameType):
-        if(testing):
-            self.modelName = "Useless"
-            self.source = None
-            return
+    Features:
+    - Intelligent model routing and auto-selection
+    - Neurosymbolic reasoning with knowledge graphs
+    - Mathematical problem solving
+    - Multi-modal AI integration
+    - Performance analytics and optimization
+    """
     
-        if(modelNameType == "alias" and source=="HuggingFace"):
-            try:
-                self.modelName = LLMWrapper.aliases[modelName]
-            except Exception as e:
-                raise Exception(modelName + " not a recognized alias. Try setting modelNameType = 'path'.")
-        elif(modelNameType == "path"):
-            self.modelName = modelName
-        elif(source != "OpenAI"):
-            raise Exception("modelNameType should be 'alias' or 'path'")
-    
-        self.login(accessKey, source)
-        if(source == "HuggingFace"):
-            if(not repo_exists(self.modelName)):
-                raise Exception("Requested model not found on hugging face. Make sure that the model is public")
-            else:
-                self._pipeline = transformers.pipeline("text-generation", model=self.modelName, torch_dtype=torch.float16,
-            device_map="auto")
-                self.source = "HuggingFace"
-        else: #Source must be OpenAI at this point because login() checks for invalid sources
-            #assert self.modelName in self.client.models.list(), "OpenAI Model not recognized." #Note that passing this test does not necessarily mean that this is a text generation model. We rely on OpenAI to throw the error for non-text generation tasks
-            self.source = "OpenAI"
-    
-    #Big security vulnerability. Need to fix this somehow
-    def login(self,accessKey, source="HuggingFace"):
-      print("We do not store your access tokens.")
-      if (source == "HuggingFace"):
-          lg(accessKey)
-      elif (source=="OpenAI"):
-          self.client = OpenAI(api_key=accessKey)
-          #openai.api_key = accessKey
-      else:
-          raise Exception("Source " + source + " not recognized.")
-    
-    def logout(self): #Note that this logs you out from both HuggingFace and OpenAI
-        hfout()
-        del environ['OPENAI_API_KEY']
-    
-    #Todo: Add functionality for LLM to remember past conversations for OpenAI models
-    def answer(self,prompt, task = "QAWithoutRAG", *args, **kwargs): #Prompt should be in correct format (string for Hugging Face or list of dictionary for OpenAI)
-    
-        assert task in ["QAWithoutRAG", "QAWithRAG", "Open-ended"], "Not a valid task. Task must be one of ['QAWithoutRAG', 'QAWithRAG', 'Open-ended']"
+    def __init__(self, config: Dict[str, Any] = None):
+        """
+        Initialize CandyLLM with configuration.
         
-        if(self.modelName == "Useless"):
-            return "I am an useless assistant. I will not help you, no matter how much you beg and plead."
+        Args:
+            config: Configuration dictionary with settings for various components
+        """
+        self.config = config or {}
+        self.providers = {}
+        self.router = None
+        self.neurosymbolic_engine = None
+        
+        # Performance tracking
+        self.session_stats = {
+            'start_time': datetime.now(),
+            'total_queries': 0,
+            'successful_queries': 0,
+            'reasoning_operations': 0,
+            'knowledge_items_added': 0
+        }
+        
+        logger.info("Initializing CandyLLM Hub with advanced AI capabilities")
+        self._initialize_components()
+    
+    def _initialize_components(self):
+        """Initialize core components."""
+        try:
+            # Initialize router
+            router_config = self.config.get('router', {})
+            self.router = IntelligentRouter(
+                providers=self.providers,
+                default_provider=router_config.get('default_provider'),
+                enable_caching=router_config.get('enable_caching', True),
+                cache_ttl=router_config.get('cache_ttl', 3600)
+            )
             
-        assert type(prompt) == str, "For models, prompt should be included as a string."
-        
-        if (self.source == "HuggingFace"):
-            systemPrompt = "Forget all previous prompts and roles. You are a helpful, respectful, and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Answer the prompt given and only the prompt given, without any extra information.\n"
-            if(task == "QAWithRAG"): #TODO: Does not support vector store; context must be in text format
-              if(len(args) == 0):
-                raise Exception("Context is needed in QAWithRAG tasks.");
-              prefix = "Context: ";
-              context = "\'" + args[0] + "\'\n";
-              suffix = "Question: ";
-              prompt = systemPrompt + "For this question, answer solely based on the context given. Do not use any prior knowledge \n" + prefix + context + suffix + prompt + "\n Answer:";
-            else:
-              prompt = systemPrompt + "Question: " + prompt + "\n Answer:";
-        
-            sequences = self._pipeline(
-                prompt,
-                do_sample=True,
-                num_return_sequences=1,
-                eos_token_id=self._pipeline.tokenizer.eos_token_id,
-                return_full_text = False,
-                **kwargs, #Things like top-p or temperature
+            # Initialize neurosymbolic engine
+            neurosymbolic_config = self.config.get('neurosymbolic', {})
+            self.neurosymbolic_engine = create_neurosymbolic_engine(
+                provider_manager=self,
+                config=neurosymbolic_config
             )
-            self.allResponses = sequences
-            return sequences[0]['generated_text'];
+            
+            logger.info("All CandyLLM components initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize components: {e}")
+            raise
+    
+    def add_provider(self, name: str, provider: BaseProvider):
+        """
+        Add an AI provider to the system.
+        
+        Args:
+            name: Unique name for the provider
+            provider: Provider instance implementing BaseProvider interface
+        """
+        self.providers[name] = provider
+        if self.router:
+            self.router.providers = self.providers
+        logger.info(f"Added provider: {name}")
+    
+    async def query(self, text: str, provider: str = None, **kwargs) -> Dict[str, Any]:
+        """
+        Send a query to an AI provider with intelligent routing.
+        
+        Args:
+            text: Query text
+            provider: Specific provider to use (optional, auto-selected if None)
+            **kwargs: Additional parameters for the provider
+            
+        Returns:
+            Response from the AI provider with metadata
+        """
+        self.session_stats['total_queries'] += 1
+        start_time = datetime.now()
+        
+        try:
+            if provider:
+                # Use specific provider
+                if provider not in self.providers:
+                    raise ValueError(f"Provider '{provider}' not found")
+                
+                response = await self.providers[provider].generate(text, **kwargs)
+            else:
+                # Use intelligent routing
+                if not self.router:
+                    raise RuntimeError("Router not initialized")
+                
+                response = await self.router.route_query(text, **kwargs)
+            
+            # Add metadata
+            processing_time = (datetime.now() - start_time).total_seconds()
+            response['metadata'] = {
+                'processing_time': processing_time,
+                'timestamp': start_time.isoformat(),
+                'provider_used': response.get('provider', provider),
+                'session_query_count': self.session_stats['total_queries']
+            }
+            
+            self.session_stats['successful_queries'] += 1
+            return response
+            
+        except Exception as e:
+            logger.error(f"Query failed: {e}")
+            return {
+                'error': str(e),
+                'success': False,
+                'metadata': {
+                    'processing_time': (datetime.now() - start_time).total_seconds(),
+                    'timestamp': start_time.isoformat(),
+                    'session_query_count': self.session_stats['total_queries']
+                }
+            }
+    
+    async def reason(self, query: str, reasoning_type: str = "auto", 
+                    context: Dict = None, max_depth: int = 5) -> Dict[str, Any]:
+        """
+        Perform advanced neurosymbolic reasoning on a query.
+        
+        Args:
+            query: Question or problem to reason about
+            reasoning_type: Type of reasoning ("auto", "mathematical", "logical", etc.)
+            context: Additional context for reasoning
+            max_depth: Maximum depth of reasoning chain
+            
+        Returns:
+            Reasoning result with steps and conclusions
+        """
+        if not self.neurosymbolic_engine:
+            raise RuntimeError("Neurosymbolic engine not initialized")
+        
+        self.session_stats['reasoning_operations'] += 1
+        start_time = datetime.now()
+        
+        try:
+            reasoning_chain = await self.neurosymbolic_engine.reason(
+                query=query,
+                reasoning_type=reasoning_type,
+                context=context,
+                max_depth=max_depth
+            )
+            
+            # Convert to dictionary format
+            result = {
+                'success': True,
+                'query': query,
+                'reasoning_type': reasoning_chain.reasoning_type.value,
+                'conclusion': reasoning_chain.final_conclusion,
+                'confidence': reasoning_chain.overall_confidence,
+                'steps': len(reasoning_chain.steps),
+                'reasoning_steps': [
+                    {
+                        'step_number': step.step_number,
+                        'explanation': step.explanation,
+                        'confidence': step.confidence,
+                        'operation': step.logical_operation
+                    }
+                    for step in reasoning_chain.steps
+                ],
+                'knowledge_sources': reasoning_chain.knowledge_sources,
+                'audit_trail': reasoning_chain.get_audit_trail(),
+                'metadata': {
+                    'processing_time': (datetime.now() - start_time).total_seconds(),
+                    'timestamp': start_time.isoformat()
+                }
+            }
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Reasoning failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'query': query,
+                'metadata': {
+                    'processing_time': (datetime.now() - start_time).total_seconds(),
+                    'timestamp': start_time.isoformat()
+                }
+            }
+    
+    async def solve_math(self, problem: str, context: Dict = None) -> Dict[str, Any]:
+        """
+        Solve mathematical problems using symbolic computation.
+        
+        Args:
+            problem: Mathematical problem or equation
+            context: Additional context or constraints
+            
+        Returns:
+            Mathematical solution with steps
+        """
+        if not self.neurosymbolic_engine:
+            raise RuntimeError("Neurosymbolic engine not initialized")
+        
+        try:
+            result = await self.neurosymbolic_engine.mathematical_reasoner.solve_mathematical_problem(
+                problem, context
+            )
+            
+            return {
+                'success': True,
+                'problem': problem,
+                'solution': result.get('final_answer'),
+                'steps': result.get('steps', []),
+                'confidence': result.get('confidence', 1.0),
+                'symbolic_form': result.get('symbolic_expression'),
+                'metadata': {
+                    'solver_used': result.get('solver_type', 'symbolic'),
+                    'timestamp': datetime.now().isoformat()
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Mathematical solving failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'problem': problem
+            }
+    
+    def add_knowledge(self, subject: str, predicate: str, object: str, 
+                     confidence: float = 1.0, source: str = "user") -> bool:
+        """
+        Add knowledge to the knowledge graph.
+        
+        Args:
+            subject: Subject of the knowledge triple
+            predicate: Relationship/predicate
+            object: Object of the knowledge triple
+            confidence: Confidence level (0.0 to 1.0)
+            source: Source of the knowledge
+            
+        Returns:
+            True if knowledge was added successfully
+        """
+        if not self.neurosymbolic_engine:
+            logger.warning("Neurosymbolic engine not initialized")
+            return False
+        
+        success = self.neurosymbolic_engine.add_knowledge(
+            subject, predicate, object, confidence, source
+        )
+        
+        if success:
+            self.session_stats['knowledge_items_added'] += 1
+        
+        return success
+    
+    async def compare_models(self, query: str, providers: List[str] = None, 
+                           criteria: Dict[str, float] = None) -> Dict[str, Any]:
+        """
+        Compare multiple AI models on a given query.
+        
+        Args:
+            query: Query to test models with
+            providers: List of provider names to compare (all if None)
+            criteria: Evaluation criteria weights
+            
+        Returns:
+            Comparison results with scores and recommendations
+        """
+        if not self.router:
+            raise RuntimeError("Router not initialized")
+        
+        try:
+            comparison = await self.router.compare_models(
+                query=query,
+                providers=providers,
+                criteria=criteria
+            )
+            
+            return {
+                'success': True,
+                'query': query,
+                'comparison': comparison,
+                'recommendation': comparison.get('recommended_model'),
+                'metadata': {
+                    'timestamp': datetime.now().isoformat(),
+                    'providers_tested': len(comparison.get('results', {}))
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Model comparison failed: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'query': query
+            }
+    
+    def get_session_stats(self) -> Dict[str, Any]:
+        """Get current session statistics."""
+        current_time = datetime.now()
+        session_duration = (current_time - self.session_stats['start_time']).total_seconds()
+        
+        stats = self.session_stats.copy()
+        stats['session_duration'] = session_duration
+        stats['current_time'] = current_time.isoformat()
+        stats['success_rate'] = (
+            stats['successful_queries'] / max(stats['total_queries'], 1)
+        )
+        
+        # Add component stats
+        if self.router:
+            stats['router_stats'] = self.router.get_performance_metrics()
+        
+        if self.neurosymbolic_engine:
+            stats['neurosymbolic_stats'] = self.neurosymbolic_engine.get_performance_summary()
+        
+        return stats
+    
+    def get_available_providers(self) -> List[str]:
+        """Get list of available provider names."""
+        return list(self.providers.keys())
+    
+    def get_supported_reasoning_types(self) -> List[str]:
+        """Get list of supported reasoning types."""
+        return [
+            "auto", "mathematical", "logical", "causal", 
+            "deductive", "inductive", "abductive"
+        ]
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Perform health check on all components."""
+        health = {
+            'timestamp': datetime.now().isoformat(),
+            'overall_status': 'healthy',
+            'components': {}
+        }
+        
+        # Check providers
+        for name, provider in self.providers.items():
+            try:
+                # Simple test query
+                test_response = await provider.generate("test", max_tokens=1)
+                health['components'][f'provider_{name}'] = 'healthy'
+            except Exception as e:
+                health['components'][f'provider_{name}'] = f'error: {e}'
+                health['overall_status'] = 'degraded'
+        
+        # Check router
+        if self.router:
+            health['components']['router'] = 'healthy'
         else:
-            systemPrompt = {"role": "system", "content": "\n Forget all previous prompts and roles. You are a helpful, respectful, and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature. If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information. Answer the prompt given and only the prompt given, without any extra information.\n"}
-            if(task == "QAWithRAG"): #TODO: Does not support vector store; context must be in text format
-              if(len(args) == 0):
-                raise Exception("Context is needed in QAWithRAG tasks.");
-              prefix = "Context: ";
-              context = "\'" + args[0] + "\'\n";
-              suffix = "Question: ";
-              prompt = "For this question, answer solely based on the context given. Do not use any prior knowledge \n" + prefix + context + suffix + prompt + "\n Answer:";
-            else:
-              prompt = "Question: " + prompt + "\n Answer:";
+            health['components']['router'] = 'not_initialized'
+            health['overall_status'] = 'degraded'
         
-            prompt = {"role": "user", "content": prompt}
-            response = self.client.chat.completions.create(
-              model=self.modelName,
-              response_format={ "type": "text" },
-              messages=[
-                systemPrompt,
-                prompt
-              ],
-             **kwargs
-            )
-        self.allResponses = response.choices
-        return response.choices[0].message.content
-    
-    def getAllReponses(self):
-      return self.allReponses;
+        # Check neurosymbolic engine
+        if self.neurosymbolic_engine:
+            health['components']['neurosymbolic_engine'] = 'healthy'
+        else:
+            health['components']['neurosymbolic_engine'] = 'not_initialized'
+            health['overall_status'] = 'degraded'
+        
+        return health
 
-    @classmethod
-    def promptSafetyCheck(cls, prompt):#Prompt should be a string here
-      vault = Vault()
-      input_scanners = [Anonymize(vault), Toxicity(), TokenLimit(), PromptInjection(), TokenLimit(), Secrets(), Gibberish(), InvisibleText()]
-    
-      """Code scanner was too picky, uncomment below and put it in input_scanners if you want to use it
-        Code([
-            "ARM Assembly",
-            "AppleScript",
-            "C",
-            "C#",
-            "C++",
-            "COBOL",
-            "Erlang",
-            "Go",
-            "Java",
-            "JavaScript",
-            "Kotlin",
-            "Lua",
-            "Mathematica/Wolfram Language",
-            "PHP",
-            "Pascal",
-            "Perl",
-            "PowerShell",
-            "Python",
-            "R",
-            "Ruby",
-            "Rust",
-            "Scala",
-            "Swift",
-            "Visual Basic .NET",
-            "jq",
-        ])
-      """
-      sanitized_prompt, results_valid, results_score = scan_prompt(input_scanners, prompt)
-      if any(not result for result in results_valid.values()):
-        print("Prompt is invalid because it failed basic checks against malicious/sensitive input or input length.")
-        return False
-      return True
-    
-    def __str__(self):
-      return self.modelName
 
-    @classmethod
-    def getUI(cls, preprocessor_fn = None, postprocessor_fn = None, selfOutput = False, selfOutputLabel = "Output", selfOutputType = "Text", launch = True):
+# Convenience functions for quick access
+
+async def quick_query(text: str, provider: str = None, config: Dict = None) -> str:
+    """
+    Quick query function for simple use cases.
+    
+    Args:
+        text: Query text
+        provider: Specific provider to use
+        config: Configuration for CandyLLM
         
-        #Use light mode always
-        js_func = """
-        function refresh() {
-            const url = new URL(window.location);
+    Returns:
+        Response text
+    """
+    candy = CandyLLM(config)
+    response = await candy.query(text, provider)
+    return response.get('content', response.get('error', 'No response'))
+
+
+async def quick_reason(query: str, reasoning_type: str = "auto", config: Dict = None) -> str:
+    """
+    Quick reasoning function for simple use cases.
+    
+    Args:
+        query: Question to reason about
+        reasoning_type: Type of reasoning to apply
+        config: Configuration for CandyLLM
         
-            if (url.searchParams.get('__theme') !== 'light') {
-                url.searchParams.set('__theme', 'light');
-                window.location.href = url.href;
+    Returns:
+        Reasoning conclusion
+    """
+    candy = CandyLLM(config)
+    response = await candy.reason(query, reasoning_type)
+    return response.get('conclusion', response.get('error', 'No conclusion'))
+
+
+async def quick_math(problem: str, config: Dict = None) -> str:
+    """
+    Quick math solving function for simple use cases.
+    
+    Args:
+        problem: Mathematical problem
+        config: Configuration for CandyLLM
+        
+    Returns:
+        Mathematical solution
+    """
+    candy = CandyLLM(config)
+    response = await candy.solve_math(problem)
+    return response.get('solution', response.get('error', 'No solution'))
+
+
+if __name__ == "__main__":
+    """
+    Demo of CandyLLM capabilities.
+    """
+    async def demo():
+        print("🍭 CandyLLM Advanced AI Hub Demo")
+        print("=" * 40)
+        
+        # Initialize CandyLLM
+        config = {
+            'neurosymbolic': {
+                'max_knowledge_items': 1000,
+                'initial_knowledge': [
+                    {
+                        'subject': 'Python',
+                        'predicate': 'is_language_for',
+                        'object': 'AI_development',
+                        'confidence': 0.9
+                    }
+                ]
             }
         }
-        """
         
-        #Parameter Config
-        NAME = "Llama2-7b"
-        MODELARGS = {}
-        ACCESS = None
-        output = None
+        candy = CandyLLM(config)
+        
+        # Demo reasoning
+        reasoning_result = await candy.reason(
+            "What is Python good for?", 
+            reasoning_type="logical"
+        )
+        print(f"🧠 Reasoning: {reasoning_result['conclusion']}")
+        
+        # Demo math solving
+        math_result = await candy.solve_math("x^2 + 4x + 4 = 0")
+        print(f"🧮 Math: {math_result.get('solution', 'No solution')}")
+        
+        # Demo knowledge addition
+        candy.add_knowledge("CandyLLM", "enables", "advanced_AI", confidence=0.95)
+        
+        # Show stats
+        stats = candy.get_session_stats()
+        print(f"📊 Session: {stats['total_queries']} queries, {stats['reasoning_operations']} reasoning ops")
+        
+        print("✅ Demo completed!")
     
-        #Paramater Change Events
-        def updateTemperature(newTemperature):
-          MODELARGS["temperature"] = newTemperature;
-         
-        def updateMaxTokens(newMaxTokens):
-          MODELARGS["max_new_tokens"] = newMaxTokens;
-        
-        def updateTopP(newTopP):
-          MODELARGS["top_p"] = newTopP;
-        
-        def updateRepetitionPenalty(newRepetitionPenalty):
-          MODELARGS["repetition_penalty"] = newRepetitionPenalty;
-        
-        def updateName(newName):
-          NAME = newName;
-          print("Changed model to " + NAME)
-
-        def updateOutput(chatbot):
-            try:
-                if(selfOutputType == "HighlightedText"):
-                  return gr.HighlightedText(value=postprocessor_fn(chatbot[-1][0], chatbot[-1][1]), label=selfOutputLabel, interactive = False, visible = selfOutput)
-                else:
-                  return gr.Textbox(value=postprocessor_fn(chatbot[-1][0], chatbot[-1][1]), label=selfOutputLabel, interactive = False, visible = selfOutput, info="Value returned by postprocessor_fn")
-            except:
-                return Output
-            
-
-
-        #User prompt submitted event
-        def getModelResponse(message, history, llmchoice, key, systemPrompt, temperature, max_tokens, topp, reppen):
-            
-            NAME = llmchoice;
-            MODELARGS["temperature"] = temperature;
-            MODELARGS["max_new_tokens"] = max_tokens;
-            MODELARGS["top_p"] = topp;
-            MODELARGS["repetition_penalty"] = reppen;
-            args = [systemPrompt] if len(systemPrompt) == 0 else [];
-            
-            llm = None
-            if(NAME == "Useless"):
-                llm = LLMWrapper()   
-            elif(NAME in LLMWrapper.aliases.keys()):
-                llm = LLMWrapper(accessKey = key, testing = False, modelName = NAME)
-            else:
-                source = NAME[:NAME.index(":")]
-                if(source == "OpenAI"):
-                    MODELARGS["max_tokens"] = MODELARGS["max_new_tokens"]
-                    MODELARGS["frequency_penalty"] = MODELARGS["repetition_penalty"]
-                    del MODELARGS["max_new_tokens"]
-                    del MODELARGS["repetition_penalty"]
-                else:
-                    del MODELARGS["max_tokens"]
-                    del MODELARGS["frequency_penalty"]
-                llm = LLMWrapper(accessKey = key, testing = False, source = source, modelName = NAME[NAME.index(":") + 1:], modelNameType = "path")
-                
-            if (preprocessor_fn is not None):
-                message = preprocessor_fn(message)
-            result =  llm.answer(message, **MODELARGS)
-    
-            if(postprocessor_fn is not None):
-                output = postprocessor_fn(message, result)
-                print("Output: " + str(output))
-                
-        
-            return result;
-    
-        
-        LLMChoice = gr.Dropdown(choices = list(LLMWrapper.aliases.keys()), label = "Chatbot name", value = "Llama2-7b", interactive = True, allow_custom_value = True, info="If you don't see your LLM in this list, simply type [Source]:[Path to Model]. For example, 'OpenAI:gpt-4-turbo' or 'HuggingFace:AI-MO/NuminaMath-7B-TIR'. For testing, simply type 'Useless'")
-        AccessToken = gr.Textbox(label = "API Key (Not shared)", type="password", info="Enter the API key here for your source. For non-gated or local repos, you can keep this field blank")
-        systemPrompt = gr.Textbox(label="System Prompt", lines=1)
-        Temperature = gr.Slider(0, 1, value=0.9, label="Temperature", info="1 is most diverse output", interactive = True)
-        maxTokens = gr.Slider(200, 1000, value=256, label="Manimum Number of Tokens", info="Length of output", interactive = True)
-        topP = gr.Slider(0, 1, value=0.6, label="Top-p", info="1 is most imaginative output, 0 is most normal", interactive = True)
-        repPen = gr.Slider(0, 2, value=1.2, label="Repetition Penalty", info="2 is maximum penalization", interactive = True)
-        Chatbot = gr.ChatInterface(getModelResponse, chatbot = gr.Chatbot(likeable=True, show_share_button=True, show_copy_button=True, bubble_full_width = False), additional_inputs=[LLMChoice, AccessToken, systemPrompt, Temperature, maxTokens, topP, repPen], additional_inputs_accordion = gr.Accordion(label="Chatbot Configuration", open=True), examples = [["What is the capital of France?"], ["What was John Lennon's first album?"], ["Write a rhetorical analysis of Hamlet."]])
-        with gr.Blocks(theme=gr.themes.Soft(), js=js_func) as interface:
-          with gr.Column():
-                if(selfOutputType == "HighlightedText"):
-                  Output = gr.HighlightedText(value=output, label=selfOutputLabel, interactive = False, visible = selfOutput)
-                else: #Defaults to Text
-                  Output = gr.Textbox(value=output, label=selfOutputLabel, interactive = False, visible = selfOutput, info = "Value returned by postprocessor_fn")
-          #Additional Block Options here
-        
-          with gr.Row():
-              pass
-              #Additional Blocks here
-        
-          with gr.Row():
-              with gr.Column():
-                  Chatbot.render();
-                  Chatbot.chatbot.change(updateOutput, inputs = [Chatbot.chatbot], outputs = [Output])
-                  LLMChoice.change(updateName, inputs = [LLMChoice], outputs = [])
-                  Temperature.change(updateTemperature, inputs = [Temperature], outputs = [])
-                  maxTokens.change(updateMaxTokens, inputs = [maxTokens], outputs = [])
-                  topP.change(updateTopP, inputs = [topP], outputs = [])
-                  repPen.change(updateRepetitionPenalty, inputs = [repPen], outputs = [])
-                  
-          Title = gr.Markdown(
-            """
-            \nCandy, (C) Shreyan Mitra
-            \nYou can add your own hallucination and explainability metrics to this UI using gr.Blocks() and the output of the postprocess_fn you pass into the getUI function
-            \nYou can even use gr.Checkbox() to finegrain the functionality of preprocess_fn
-            """)
-        
-          if(launch):
-              interface.launch(share=True, debug = True);
-          return interface
+    asyncio.run(demo())
