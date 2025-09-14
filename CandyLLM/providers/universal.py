@@ -219,6 +219,16 @@ class SecureUniversalModelProvider(BaseProvider):
                 "openai", "anthropic", "cohere", "replicate", "huggingface",
                 "bedrock", "vertex_ai", "azure", "palm", "ai21", "nlp_cloud"
             ]
+        },
+        
+        # Development/Testing Providers
+        "useless": {
+            "class": "SecureUselessProvider",
+            "security_level": "high",  # Ironically the most secure - no external calls!
+            "rate_limit": 1000,  # No rate limiting needed for useless responses
+            "models": ["useless-basic", "useless-verbose", "useless-slow", "useless-streamy", "useless-error", "useless-json"],
+            "description": "Development provider for testing and debugging without API costs",
+            "features": ["zero_cost", "predictable_responses", "streaming_support", "debug_mode"]
         }
     }
     

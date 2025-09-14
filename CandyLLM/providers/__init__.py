@@ -8,8 +8,12 @@ Secure provider initialization module that manages all AI model providers:
 - OpenAI provider with secure API key handling and content filtering
 - Anthropic provider with Claude-specific safety features
 - LiteLLM provider with universal model access and security controls
+- Useless provider for development and testing without API costs
 - Base provider interface for extensibility
 - Mock providers for testing and development
+- Centralized security configuration and audit logging
+- Provider-specific rate limiting and error handling
+- Comprehensive input validation across all providers
 """
 
 from .base import BaseProvider, MockProvider, ProviderRegistry, provider_registry, create_mock_providers
@@ -22,10 +26,6 @@ __all__ = [
     'provider_registry',
     'create_mock_providers'
 ]
-- Centralized security configuration and audit logging
-- Provider-specific rate limiting and error handling
-- Comprehensive input validation across all providers
-"""
 
 import logging
 
@@ -41,13 +41,24 @@ from .anthropic import SecureAnthropicProvider as AnthropicProvider
 from .anthropic import SecureAnthropicModel as AnthropicModel
 from .litellm import SecureLiteLLMProvider as LiteLLMProvider
 from .litellm import SecureLiteLLMModel as LiteLLMModel
+from .useless import SecureUselessProvider as UselessProvider
+from .useless import SecureUselessModel as UselessModel
+
+# Import Strands provider (optional - for agent capabilities)
+try:
+    from .strands import StrandsProvider
+    STRANDS_AVAILABLE = True
+except ImportError:
+    STRANDS_AVAILABLE = False
 
 # Provider security metadata
 PROVIDER_SECURITY_LEVELS = {
     "UniversalModelProvider": "variable",
     "OpenAIProvider": "high",
     "AnthropicProvider": "high", 
-    "LiteLLMProvider": "variable"
+    "LiteLLMProvider": "variable",
+    "UselessProvider": "high",  # Ironically the most secure - no external calls!
+    "StrandsProvider": "high"   # Agent provider with comprehensive security features
 }
 
 # Security features enabled across all providers
@@ -109,6 +120,12 @@ __all__ = [
     "AnthropicModel",
     "LiteLLMProvider",
     "LiteLLMModel",
+    "UselessProvider",  # Development/testing provider
+    "UselessModel",     # Development/testing model
+    
+    # Agent provider (optional)
+    "StrandsProvider",
+    "STRANDS_AVAILABLE",
     
     # Security utilities
     "get_provider_security_info",
