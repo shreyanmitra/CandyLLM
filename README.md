@@ -382,6 +382,265 @@ stats = metrics_handler.get_metrics()
 print(f"Performance metrics: {stats}")
 ```
 
+### 🤖 Strands Agents with Claude LLM
+
+**Real-World Example: Temperature Comparison with Chain-of-Thought Reasoning**
+
+This example demonstrates using Claude LLM through Strands Agents with sophisticated chain-of-thought reasoning to compare current temperatures between Paris and New York:
+
+```python
+import asyncio
+from CandyLLM.agents import AgentProviderManager
+from CandyLLM.core.types import Message
+
+async def weather_comparison_example():
+    """
+    Advanced example: Use Claude LLM with Strands Agents to compare 
+    temperatures between Paris and New York using chain-of-thought reasoning
+    with dynamically synthesized tools
+    """
+    
+    # Initialize Strands agent provider
+    manager = AgentProviderManager()
+    strands_provider = manager.get_provider("strands")
+    
+    # Enable dynamic tool synthesis - Strands will generate tools as needed
+    tool_synthesis_config = {
+        "enable_dynamic_synthesis": True,
+        "tool_libraries": ["weather", "web_search", "calculations"],
+        "synthesis_model": "claude-3-5-sonnet-20241022",  # Use Claude for tool generation
+        "allowed_apis": [
+            "openweathermap.org",
+            "weatherapi.com", 
+            "api.weather.gov"
+        ],
+        "security_level": "sandbox"  # Safe execution environment
+    }
+    
+    # Create Claude-powered agent with dynamic tool synthesis capabilities
+    agent_config = {
+        "name": "weather_analyst",
+        "model_provider": "anthropic",  # Using Claude LLM
+        "model_name": "claude-3-5-sonnet-20241022",  # Latest Claude model
+        "instructions": """You are a sophisticated weather analyst with advanced reasoning capabilities.
+        
+        When comparing temperatures between cities, use this chain-of-thought approach:
+        
+        1. **Tool Assessment**: Determine what tools you need (weather APIs, calculations, etc.)
+        2. **Dynamic Tool Request**: If you need a tool that doesn't exist, request its synthesis
+        3. **Data Collection**: Gather current temperature data for both cities using synthesized tools
+        4. **Analysis Framework**: 
+           - Extract exact temperatures in both Celsius and Fahrenheit
+           - Note the time of data collection for accuracy
+           - Consider any additional context (humidity, weather conditions)
+        5. **Mathematical Comparison**: 
+           - Calculate the precise difference in both temperature scales
+           - Determine which city is warmer/cooler
+           - Express the difference as both absolute values and percentages
+        6. **Contextual Reasoning**:
+           - Consider seasonal expectations for each location
+           - Factor in typical climate patterns
+           - Assess if the difference is significant or minor
+        7. **Clear Communication**: 
+           - Present findings in a structured, easy-to-understand format
+           - Include both raw data and interpreted insights
+           - Highlight the key takeaway
+        
+        When you need a tool that doesn't exist, simply describe what you need and the system 
+        will synthesize it for you. Always show your reasoning step-by-step and be precise 
+        with numerical calculations.""",
+        "tool_synthesis": tool_synthesis_config,  # Enable dynamic tool creation
+        "max_turns": 15,
+        "provider_config": {
+            "api_key": "${ANTHROPIC_API_KEY}",  # Set your API key
+            "max_tokens": 2500,
+            "temperature": 0.3  # Lower temperature for more focused reasoning
+        }
+    }
+    
+    # Create the agent
+    agent = await strands_provider.create_agent(**agent_config)
+    
+    # Complex query requiring chain-of-thought reasoning and dynamic tool synthesis
+    query = Message(
+        role="user", 
+        content="""What is the difference in current temperature between Paris, France and New York, USA today? 
+        
+        I need you to:
+        1. Synthesize appropriate tools to get real-time weather data for both cities
+        2. Use those tools to gather accurate temperature information
+        3. Apply systematic chain-of-thought reasoning to compare the temperatures
+        4. Explain what this difference means practically
+        5. Provide context about whether this is typical for this time of year
+        6. Give me both Celsius and Fahrenheit comparisons
+        
+        Show me your complete reasoning process step by step, including how you 
+        determine what tools you need and request their synthesis."""
+    )
+    
+    print("🌡️ Weather Comparison Analysis with Dynamic Tool Synthesis...")
+    print("=" * 70)
+    print(f"Query: {query.content}")
+    print("=" * 70)
+    
+    # Get Claude's response with dynamic tool synthesis and full reasoning
+    response = await strands_provider.run_agent(agent.agent_id, [query])
+    
+    print("🤖 Claude's Analysis with Tool Synthesis:")
+    print(response.content)
+    
+    # Check what tools were dynamically created
+    synthesized_tools = await strands_provider.get_synthesized_tools(agent.agent_id)
+    if synthesized_tools:
+        print("\n🔧 Dynamically Synthesized Tools:")
+        for tool in synthesized_tools:
+            print(f"  - {tool['name']}: {tool['description']}")
+    
+    # Follow-up question to demonstrate tool reuse and reasoning persistence
+    follow_up = Message(
+        role="user",
+        content="""Now synthesize additional tools if needed to help me understand: 
+        
+        Based on your temperature analysis, what would be the optimal clothing 
+        recommendations for outdoor activities in each city? Consider wind chill, 
+        humidity effects, and UV index if available.
+        
+        If you need tools for clothing recommendations or comfort calculations, 
+        please synthesize them."""
+    )
+    
+    print("\n" + "=" * 70)
+    print("Follow-up Query:", follow_up.content)
+    print("=" * 70)
+    
+    follow_up_response = await strands_provider.run_agent(agent.agent_id, [follow_up])
+    
+    print("🤖 Claude's Enhanced Recommendations:")
+    print(follow_up_response.content)
+    
+    # Check if additional tools were synthesized for the follow-up
+    final_tools = await strands_provider.get_synthesized_tools(agent.agent_id)
+    if len(final_tools) > len(synthesized_tools):
+        print("\n🔧 Additional Tools Synthesized for Follow-up:")
+        for tool in final_tools[len(synthesized_tools):]:
+            print(f"  - {tool['name']}: {tool['description']}")
+    
+    # Show tool synthesis performance metrics
+    synthesis_stats = await strands_provider.get_tool_synthesis_stats(agent.agent_id)
+    print(f"\n📊 Tool Synthesis Performance:")
+    print(f"  - Tools synthesized: {synthesis_stats['total_synthesized']}")
+    print(f"  - Synthesis time: {synthesis_stats['avg_synthesis_time']:.2f}s")
+    print(f"  - Success rate: {synthesis_stats['success_rate']:.1%}")
+    
+    # Cleanup
+    await strands_provider.cleanup_agent(agent.agent_id)
+    
+    print("\n✅ Analysis with dynamic tool synthesis complete!")
+
+# Run the example
+if __name__ == "__main__":
+    asyncio.run(weather_comparison_example())
+```
+
+**Expected Output Example:**
+```
+🌡️ Weather Comparison Analysis with Dynamic Tool Synthesis...
+======================================================================
+Query: What is the difference in current temperature between Paris, France and New York, USA today?
+======================================================================
+
+🤖 Claude's Analysis with Tool Synthesis:
+I'll analyze the temperature difference between Paris and New York using systematic reasoning 
+and dynamic tool synthesis.
+
+**Step 1: Tool Assessment & Synthesis**
+I need tools to get current weather data. Let me synthesize appropriate tools:
+
+[Strands dynamically synthesizes weather API tool]
+✅ Synthesized: get_weather_data(city, country, include_details=True)
+✅ Synthesized: temperature_converter(temp, from_unit, to_unit) 
+✅ Synthesized: calculate_temperature_difference(temp1, temp2, unit)
+
+**Step 2: Data Collection**
+Using synthesized weather tool to gather data:
+
+[Agent calls synthesized tools]
+- Paris, France: 18°C (64°F), partly cloudy, humidity 65%, wind 12 km/h
+- New York, USA: 22°C (72°F), sunny, humidity 58%, wind 8 km/h
+- Data timestamp: 2025-09-14T15:30:00 UTC
+
+**Step 3: Mathematical Analysis** 
+Using temperature calculation tools:
+- Celsius difference: 22°C - 18°C = 4°C
+- Fahrenheit difference: 72°F - 64°F = 8°F  
+- Percentage difference: (4/18) × 100 = 22.2% warmer in New York
+- Relative warmth factor: New York feels moderately warmer
+
+**Step 4: Contextual Reasoning**
+September weather analysis:
+- Paris: 18°C is typical early fall, slightly below seasonal average
+- New York: 22°C is pleasant fall weather, near seasonal norm
+- 4°C difference is noticeable but not extreme
+- Both cities in comfortable ranges for outdoor activities
+
+**Step 5: Key Insights**
+New York is currently 4°C (8°F) warmer than Paris - a moderate difference that 
+would require different clothing choices but both cities have pleasant weather.
+
+🔧 Dynamically Synthesized Tools:
+  - get_weather_data: Real-time weather API with comprehensive data
+  - temperature_converter: Convert between temperature units
+  - calculate_temperature_difference: Precise temperature analysis
+
+======================================================================
+Follow-up Query: Now synthesize additional tools if needed to help me understand...
+======================================================================
+
+🤖 Claude's Enhanced Recommendations:
+Let me synthesize additional tools for clothing and comfort analysis:
+
+[Strands synthesizes comfort analysis tools]
+✅ Synthesized: clothing_comfort_calculator(temp, humidity, wind, activity_level)
+✅ Synthesized: uv_index_analyzer(location, time_of_day)
+✅ Synthesized: wind_chill_calculator(temp, wind_speed)
+
+**Clothing Analysis Using Synthesized Tools:**
+
+**For Paris (18°C, partly cloudy, 65% humidity, 12 km/h wind):**
+[Tool calculates comfort factors]
+- Effective temperature: 16°C (feels cooler due to wind)
+- Comfort recommendation: Light jacket or cardigan essential
+- Suggested outfit: Long sleeves + light jacket, long pants, closed shoes
+- UV consideration: Low UV due to cloud cover
+
+**For New York (22°C, sunny, 58% humidity, 8 km/h wind):**
+[Tool calculates comfort factors] 
+- Effective temperature: 23°C (feels slightly warmer in sun)
+- Comfort recommendation: Light layers, sun protection needed
+- Suggested outfit: T-shirt or light long-sleeve, light pants/shorts, sunglasses
+- UV consideration: Moderate UV, sunscreen recommended
+
+🔧 Additional Tools Synthesized for Follow-up:
+  - clothing_comfort_calculator: Factors in humidity, wind, activity level
+  - uv_index_analyzer: UV exposure analysis for clothing decisions
+  - wind_chill_calculator: Real-feel temperature calculation
+
+📊 Tool Synthesis Performance:
+  - Tools synthesized: 6
+  - Synthesis time: 1.3s
+  - Success rate: 100.0%
+
+✅ Analysis with dynamic tool synthesis complete!
+```
+
+This enhanced example showcases:
+- **🧠 Chain-of-Thought Reasoning**: Claude systematically breaks down problems
+- **⚡ Dynamic Tool Synthesis**: Tools created on-demand based on requirements
+- **🔧 Intelligent Tool Selection**: System determines optimal tools for each task
+- **💬 Conversational Tool Building**: Follow-up questions trigger additional tool creation
+- **📊 Performance Monitoring**: Real-time metrics on tool synthesis efficiency
+- **🎯 Adaptive Problem Solving**: Tools evolve based on conversation needs
+
 ## 🆘 Troubleshooting & Support
 
 ### Common Issues
