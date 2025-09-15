@@ -1684,10 +1684,6 @@ def secure_neurosymbolic_operation(operation_name: str):
 
 # Backward compatibility aliases
 MathematicalReasoner = SecureMathematicalReasoner
-                        'expression': match.strip() if isinstance(match, str) else match[0].strip()
-                    })
-        
-        return expressions
     
     def solve_mathematical_problem(self, expressions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Solve mathematical problems using symbolic computation"""
